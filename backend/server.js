@@ -89,8 +89,8 @@ app.post(
   async (req, res) => {
 
     const imagenes = req.files.map(file =>
-      `${req.protocol}://${req.get("host")}/uploads/productos/${file.filename}`
-    );
+  `https://web-s0j2.onrender.com/uploads/productos/${file.filename}`
+);
 
     res.json(imagenes);
 
@@ -104,7 +104,7 @@ app.post(
   (req, res) => {
 
     const imagen =
-      `${req.protocol}://${req.get("host")}/uploads/productos/${req.file.filename}`;
+`https://web-s0j2.onrender.com/uploads/productos/${req.file.filename}`;
 
     res.json({ imagen });
 
