@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -6,9 +5,32 @@ const db = require("./config/db");
 
 const multer = require("multer");
 const path = require("path");
-const fs = require("fs");
+// Ya NO necesitas fs para crear carpetas locales
+// const fs = require("fs");
 
+// ========== NUEVO: Configuración de Cloudinary ==========
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'productos',            // Carpeta en Cloudinary
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    public_id: (req, file) => {
+      return Date.now() + '-' + file.originalname.replace(/\s+/g, '-');
+    }
+  }
+});
+
+const upload = multer({ storage });
+// =========================================================
 
 require("dotenv").config();
 console.log("EMAIL_USER:", process.env.EMAIL_USER);
@@ -17,99 +39,34 @@ console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "Cargada" : "No cargada");
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-
   service: "gmail",
-
   auth: {
-
     user: process.env.EMAIL_USER,
-
     pass: process.env.EMAIL_PASS
-
   }
-
 });
 
 const app = express();
 
 app.use(cors());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-app.use(express.json({
-  limit: "50mb"
-}));
+// ========== ELIMINADA la ruta estática de uploads ==========
+// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.use(express.urlencoded({
-  limit: "50mb",
-  extended: true
-}));
-
-const storage = multer.diskStorage({
-
-  destination: (req, file, cb) => {
-
-    const dir = "uploads/productos";
-
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    cb(null, dir);
-  },
-
-  filename: (req, file, cb) => {
-
-    const nombre =
-      Date.now() +
-      "-" +
-      file.originalname.replace(/\s+/g, "-");
-
-    cb(null, nombre);
-  }
-
+// ========== RUTAS DE SUBIDA CON CLOUDINARY ==========
+app.post("/upload-productos", upload.array("imagenes", 20), async (req, res) => {
+  // Cloudinary devuelve la URL en req.files[].path
+  const imagenes = req.files.map(file => file.path);
+  res.json(imagenes);
 });
 
-const upload = multer({
-  storage
+app.post("/upload-banner", upload.single("imagen"), (req, res) => {
+  const imagen = req.file.path; // URL de Cloudinary
+  res.json({ imagen });
 });
 
-
-app.use(cors());
-
-app.use(
-  "/uploads",
-  express.static(
-    path.join(__dirname, "uploads")
-  )
-);
-
-
-app.post(
-  "/upload-productos",
-  upload.array("imagenes", 20),
-  async (req, res) => {
-
-    const imagenes = req.files.map(file =>
-  `https://web-s0j2.onrender.com/uploads/productos/${file.filename}`
-);
-
-    res.json(imagenes);
-
-  }
-);
-
-
-app.post(
-  "/upload-banner",
-  upload.single("imagen"),
-  (req, res) => {
-
-    const imagen =
-`https://web-s0j2.onrender.com/uploads/productos/${req.file.filename}`;
-
-    res.json({ imagen });
-
-  }
-);
 /* ================================================= */
 /* 🔵 OBTENER TODOS LOS PRODUCTOS */
 /* ================================================= */
